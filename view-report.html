@@ -244,18 +244,18 @@
     control.onchange = () => {
       const linkDisplay = document.querySelector("[name=graphDisplay]:checked").value;
       if (linkDisplay === "full") {
-        link.attr("opacity", "1");
-        node.attr("opacity", "1");
+        link.attr("display", "initial");
+        node.attr("display", "initial");
       } else {
-        link.attr("opacity", "0");
-        node.attr("opacity", "0");
+        link.attr("display", "none");
+        node.attr("display", "none");
         report.cycles.forEach(cycle => {
           cycle.forEach((n, i) => {
             const next = cycle[(i + 1) % cycle.length];
             d3.selectAll(`.link-${id(n)}-${id(next)}`)
-              .attr("opacity", "1")
+              .attr("display", "initial")
               .attr("stroke", "#999");
-            d3.selectAll(`.node-${id(n)}`).attr("opacity", "1");
+            d3.selectAll(`.node-${id(n)}`).attr("display", "initial");
           })
         })
       }

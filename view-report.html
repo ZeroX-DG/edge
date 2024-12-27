@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Analysis Result</title>
+</head>
+<body>
+    <div id="container">
+    </div>
+</body>
+<script type="module">
+  import * as d3 from "https://cdn.jsdelivr.net/npm/d3@7/+esm";
+
+  function transformToD3Format(report) {
+    const files = Object.keys(report.graph);
+    const nodes = files.map((file) => ({ id: file }));
+    const links = files.flatMap((file) => report.graph[file].map((target) => ({
+      source: file,
+      target: target,
+    })));
+
+    return { nodes, links };
+  }
+
+  function renderGraph(graph, cycles) {
+    const width = window.innerWidth;
+    const height = window.innerHeight;
+
+    const hasCycle = (node) => {
+      return cycles.some(cycle => cycle.some(n => n === node.id))
+    };
+
+    const svg = d3
+      .select("#container")
+      .append("svg")
+      .attr("width", width)
+      .attr("height", height);
+
+    const simulation = d3
+      .forceSimulation(graph.nodes)
+      .force("link", d3.forceLink(graph.links).id((d) => d.id).distance(100))
+      .force("charge", d3.forceManyBody().strength(-300))
+      .force("center", d3.forceCenter(width / 2, height / 2));
+
+    svg.append("defs")
+      .append("marker")
+      .attr("id", "arrowhead")
+      .attr("viewBox", "0 -5 10 10")
+      .attr("refX", 15) // Adjust to position the arrowhead correctly
+      .attr("refY", 0)
+      .attr("markerWidth", 6)
+      .attr("markerHeight", 6)
+      .attr("orient", "auto")
+      .append("path")
+      .attr("d", "M0,-5L10,0L0,5")
+      .attr("fill", "#999"); // Arrow color
+
+    const link = svg
+      .append("g")
+      .selectAll("line")
+      .data(graph.links)
+      .enter()
+      .append("line")
+      .attr("stroke-width", 2)
+      .attr("stroke", "#999")
+      .attr("marker-end", "url(#arrowhead)")
+      .attr("class", (d) => `link-${btoa(d.source.id).replaceAll('=', '')}-${btoa(d.target.id).replaceAll('=', '')} link-${btoa(d.target.id).replaceAll('=', '')}-${btoa(d.source.id).replaceAll('=', '')}`);
+
+    const tooltip = d3.select("#container")
+      .append("div")
+      .style("opacity", 0)
+      .attr("class", "tooltip")
+      .style("background-color", "white")
+      .style("border", "solid")
+      .style("border-width", "2px")
+      .style("border-radius", "5px")
+      .style("position", "absolute")
+      .style("pointer-events", "none")
+      .style("padding", "5px");
+
+    const node = svg
+      .append("g")
+      .selectAll("circle")
+      .data(graph.nodes)
+      .enter()
+      .append("circle")
+      .attr("r", 5)
+      .attr("fill", (d) => hasCycle(d) ? "grey" : "green")
+      .attr("stroke", "black")
+      .attr("class", (d) => `node-${btoa(d.id).replaceAll('=', '')}`)
+      .on("mouseover", function (event, d) {
+        d3.select(this).attr("fill", "red"); // Change color on hover
+
+        d.cycles = cycles.filter(cycle => cycle.some(n => n === d.id));
+
+        tooltip
+          .style("opacity", 1);
+
+        // Highlight connected links
+        // d3.selectAll(`.link-${btoa(d.id).replaceAll('=', '')}`).attr("stroke", "red");
+
+        d.cycles.forEach(cycle => {
+          cycle.forEach((n, i) => {
+            const next = cycle[(i + 1) % cycle.length];
+            d3.selectAll(`.link-${btoa(n).replaceAll('=', '')}-${btoa(next).replaceAll('=', '')}`).attr("stroke", "red");
+            d3.selectAll(`.node-${btoa(n).replaceAll('=', '')}`).attr("fill", "red");
+          })
+        })
+      })
+      .on("mousemove", function (event, d) {
+        tooltip
+          .html(`
+              File: <code>${d.id}</code><br>
+              Cycles (${d.cycles.length}) (${new Set(d.cycles.flat()).size} files):<br>
+                  ${d.cycles.map((cycle, i) => `
+                  <p>
+                      Cycle #${i + 1} (${cycle.length} files):
+                      <pre>${cycle.join('<br>->')}<br>->${cycle[0]}</pre>
+                  </p>`).join('<br>')}`)
+          .style("left", event.pageX + "px")
+          .style("top", event.pageY + "px")
+      })
+      .on("mouseout", function (event, d) {
+        d3.select(this).attr("fill", (d) => hasCycle(d) ? "grey" : "green"); // Reset color on mouse out
+
+        tooltip
+          .style("opacity", 0);
+
+        // Reset connected links
+        // d3.selectAll(`.link-${btoa(d.id).replaceAll('=', '')}`).attr("stroke", "#999");
+
+        d.cycles.forEach(cycle => {
+          cycle.forEach((n, i) => {
+            const next = cycle[(i + 1) % cycle.length];
+            d3.selectAll(`.link-${btoa(n).replaceAll('=', '')}-${btoa(next).replaceAll('=', '')}`).attr("stroke", "#999");
+            d3.selectAll(`.node-${btoa(n).replaceAll('=', '')}`).attr("fill", function(ds) {
+              return hasCycle(ds) ? "grey" : "green"
+            });
+          })
+        })
+      })
+      .call(
+        d3.drag()
+          .on("start", (event, d) => {
+            if (!event.active) simulation.alphaTarget(0.3).restart();
+            d.fx = d.x;
+            d.fy = d.y;
+          })
+          .on("drag", (event, d) => {
+            d.fx = event.x;
+            d.fy = event.y;
+          })
+          .on("end", (event, d) => {
+            if (!event.active) simulation.alphaTarget(0);
+            d.fx = null;
+            d.fy = null;
+          })
+      );
+
+    // Add zoom and pan behavior
+    const zoom = d3.zoom()
+      .scaleExtent([0.1, 10]) // Set zoom scale limits
+      .on("zoom", (event) => {
+        link.attr("transform", event.transform); // Apply zoom and pan transformations
+        node.attr("transform", event.transform); // Apply zoom and pan transformations
+      });
+
+    svg.call(zoom); // Enable zoom on the SVG element
+
+    simulation.on("tick", () => {
+      link
+        .attr("x1", (d) => d.source.x)
+        .attr("y1", (d) => d.source.y)
+        .attr("x2", (d) => d.target.x)
+        .attr("y2", (d) => d.target.y);
+
+      node.attr("cx", (d) => d.x).attr("cy", (d) => d.y);
+    });
+  }
+
+  if (window.report) {
+    const data = transformToD3Format(report);
+    renderGraph(data, report.cycles);
+  }
+</script>
+</html>

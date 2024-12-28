@@ -24,6 +24,11 @@
         right: 0;
         top: 0;
       }
+
+      svg {
+        width: 100%;
+        height: 100%;
+      }
     </style>
 </head>
 <body>
@@ -79,8 +84,8 @@
     const svg = d3
       .select("#container")
       .append("svg")
-      .attr("width", width)
-      .attr("height", height);
+      .attr("viewBox", `0 0 ${width} ${height}`) // Coordinate system
+      .attr("preserveAspectRatio", "xMidYMid meet"); // Preserve scaling
 
     const zoomGroup = svg.append("g");
 
@@ -231,6 +236,14 @@
         .attr("y2", (d) => d.target.y);
 
       node.attr("transform", d => `translate(${d.x},${d.y})`);
+    });
+
+    // Handle window resizing
+    window.addEventListener("resize", () => {
+      const newWidth = window.innerWidth;
+      const newHeight = window.innerHeight;
+      svg.attr("viewBox", `0 0 ${newWidth} ${newHeight}`);
+      simulation.force("center", d3.forceCenter(newWidth / 2, newHeight / 2));
     });
   }
 

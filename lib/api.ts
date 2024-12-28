@@ -9,7 +9,9 @@ export interface EdgeConfig {
 }
 
 const defaultConfig: EdgeConfig = {
-    madge: {},
+    madge: {
+        fileExtensions: ['tsx', 'js', 'jsx', 'ts']
+    },
     includeCycles: true
 };
 

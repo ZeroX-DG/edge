@@ -1,4 +1,4 @@
-import { Edge } from '../lib/api.ts';
+import { Edge, EdgeConfig } from '../lib/api.ts';
 import { parseArgs, ParseOptions } from '@std/cli/parse-args';
 import { DOMParser } from "jsr:@b-fuze/deno-dom";
 
@@ -11,7 +11,16 @@ async function main() {
         return Deno.exit(1);
     }
 
-    const edge = new Edge(path.toString(), {});
+    const config: EdgeConfig = {};
+
+    // Extensions arg is a comma-separated string like: js,tsx,jsx
+    if (args.extensions) {
+        config.madge = {
+            fileExtensions: args.extensions.split(',')
+        }
+    }
+
+    const edge = new Edge(path.toString(), config);
     const report = await edge.analyze();
 
     const encoder = new TextEncoder();
@@ -36,7 +45,8 @@ async function main() {
 
 function parseArguments(args: string[]) {
     const options: ParseOptions = {
-        boolean: ['html', 'json']
+        boolean: ['html', 'json'],
+        string: ['extensions']
     };
     return parseArgs(args, options);
 }

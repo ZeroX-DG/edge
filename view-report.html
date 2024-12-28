@@ -17,12 +17,17 @@
         position: relative;
       }
 
-      #sidebar {
-        width: 300px;
-        height: 100%;
+      #info-bar {
+        width: 100%;
+        height: 400px;
         position: fixed;
-        right: 0;
-        top: 0;
+        left: 0;
+        bottom: 0;
+      }
+
+      #file-info {
+        height: 100%;
+        overflow: auto;
       }
 
       svg {
@@ -34,26 +39,38 @@
 <body>
     <div id="container"> 
     </div>
-    <div id="sidebar" class="bg-light p-4 shadow">
-      <h5 class="mb-2">Display</h5>
+    <div id="info-bar" class="bg-light p-4 shadow">
+      <div class="row h-100">
+        <div class="col-4">
+          <h5 class="mb-2">Display</h5>
 
-      <div class="row">
-        <div class="col-6">Graph:</div>
-        <div class="col-6">
-          <div class="form-check">
-            <input class="form-check-input" type="radio" name="graphDisplay" value="full" id="full" checked>
-            <label class="form-check-label" for="full">Full Graph</label>
+          <div class="row">
+            <div class="col-6">Graph:</div>
+            <div class="col-6">
+              <div class="form-check">
+                <input class="form-check-input" type="radio" name="graphDisplay" value="full" id="full" checked>
+                <label class="form-check-label" for="full">Full Graph</label>
+              </div>
+              <div class="form-check">
+                <input class="form-check-input" type="radio" name="graphDisplay" value="cycles" id="cycles" >
+                <label class="form-check-label" for="cycles">Only Cycles</label>
+              </div>
+            </div>
           </div>
-          <div class="form-check">
-            <input class="form-check-input" type="radio" name="graphDisplay" value="cycles" id="cycles" >
-            <label class="form-check-label" for="cycles">Only Cycles</label>
+
+          <div class="mb-3 form-check">
+            <input class="form-check-input" type="checkbox" name="showFileNames" id="showFileNames">
+            <label class="form-check-label" for="showFileNames">Show file names</label>
           </div>
         </div>
-      </div>
-
-      <div class="mb-3 form-check">
-        <input class="form-check-input" type="checkbox" name="showFileNames" id="showFileNames">
-        <label class="form-check-label" for="showFileNames">Show file names</label>
+        <div class="col-8">
+          <div class="mb-3" id="file-info" style="display: none">
+            <h5 class="mb-2">File Info</h5>
+            <p><b>File Name:</b>&nbsp;<code id="filename"></code></p>
+            <p><b>Cycles (<span id="cycle-count"></span>)</b>:</p>
+            <ul id="cycle-list"></ul>
+          </div>
+        </div>
       </div> 
     </div>
 </body>
@@ -61,6 +78,28 @@
   import * as d3 from "https://cdn.jsdelivr.net/npm/d3@7/+esm";
 
   const id = (nodeId) => btoa(nodeId).replaceAll('=', '');
+
+  function showFileInfo(file, cycles) {
+    const fileInfoPanel = document.querySelector("#file-info");
+    const fileName = document.querySelector("#filename");
+    const cycleCount = document.querySelector("#cycle-count");
+    const cycleList = document.querySelector("#cycle-list");
+
+    fileInfoPanel.style.display = 'block';
+    fileName.innerText = file.id;
+    cycleCount.innerText = cycles.length;
+
+    let listHTML = '';
+    for (let i = 0; i < cycles.length; i++) {
+      const cycle = cycles[i];
+      listHTML += `<li><b>Cycle #${i + 1} (${cycle.length} files)</b><br />`;
+      listHTML += cycle.map(f => file.id == f ? `<b><code>${f}</code></b><br/>` : `<code>${f}</code><br/>`).join(`→&nbsp;`);
+      listHTML += cycle[0] == file.id ? `→&nbsp;<b><code>${cycle[0]}</code></b>` : `→&nbsp;<code>${cycle[0]}</code>`;
+      listHTML += `</li>`;
+    }
+
+    cycleList.innerHTML = listHTML;
+  }
 
   function transformToD3Format(report) {
     const files = Object.keys(report.graph);
@@ -92,7 +131,7 @@
     const simulation = d3
       .forceSimulation(graph.nodes)
       .force("link", d3.forceLink(graph.links).id((d) => d.id).distance(100))
-      .force("charge", d3.forceManyBody().strength(-300))
+      .force("charge", d3.forceManyBody().strength(-200))
       .force("center", d3.forceCenter(width / 2, height / 2));
 
     svg.append("defs")
@@ -164,6 +203,10 @@
       .attr("r", 5)
       .attr("fill", (d) => hasCycle(d) ? "grey" : "green")
       .attr("stroke", "black")
+      .on("click", (event, d) => {
+        const fileCycles = cycles.filter(cycle => cycle.some(n => n === d.id));
+        showFileInfo(d, fileCycles);
+      })
       .on("mouseover", (event, d) => {
         d3.selectAll(`.node-${id(d.id)}`).selectAll('circle').attr("fill", "red");
 

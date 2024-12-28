@@ -53,7 +53,11 @@
               </div>
               <div class="form-check">
                 <input class="form-check-input" type="radio" name="graphDisplay" value="cycles" id="cycles" >
-                <label class="form-check-label" for="cycles">Only Cycles</label>
+                <label class="form-check-label" for="cycles">Cycles Only</label>
+              </div>
+              <div class="form-check">
+                <input class="form-check-input" type="radio" name="graphDisplay" value="orphans" id="orphans" >
+                <label class="form-check-label" for="orphans">Orphans Only</label>
               </div>
             </div>
           </div>
@@ -331,15 +335,22 @@
       } else {
         link.attr("display", "none");
         node.attr("display", "none");
-        report.cycles.forEach(cycle => {
-          cycle.forEach((n, i) => {
-            const next = cycle[(i + 1) % cycle.length];
-            d3.selectAll(`.link-${id(n)}-${id(next)}`)
-              .attr("display", "initial")
-              .attr("stroke", "#999");
-            d3.selectAll(`.node-${id(n)}`).attr("display", "initial");
+
+        if (linkDisplay === "orphans") {
+          report.orphans.forEach(orphan => {
+            d3.selectAll(`.node-${id(orphan)}`).attr("display", "initial");
+          });
+        } else {
+          report.cycles.forEach(cycle => {
+            cycle.forEach((n, i) => {
+              const next = cycle[(i + 1) % cycle.length];
+              d3.selectAll(`.link-${id(n)}-${id(next)}`)
+                .attr("display", "initial")
+                .attr("stroke", "#999");
+              d3.selectAll(`.node-${id(n)}`).attr("display", "initial");
+            })
           })
-        })
+        }
       }
     }
   });

@@ -1,6 +1,7 @@
 import { Edge, EdgeConfig } from '../lib/api.ts';
 import { parseArgs, ParseOptions } from '@std/cli/parse-args';
 import { DOMParser } from "jsr:@b-fuze/deno-dom";
+import { open } from 'https://deno.land/x/open/index.ts';
 
 async function main() {
     const args = parseArguments(Deno.args);
@@ -41,11 +42,15 @@ async function main() {
 
         Deno.writeFileSync('edge_analysis.html', encoder.encode(document.documentElement!.innerHTML));
     }
+
+    if (args.open) {
+        await open('edge_analysis.html');
+    }
 }
 
 function parseArguments(args: string[]) {
     const options: ParseOptions = {
-        boolean: ['html', 'json'],
+        boolean: ['html', 'json', 'open'],
         string: ['extensions']
     };
     return parseArgs(args, options);

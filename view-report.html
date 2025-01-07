@@ -131,11 +131,12 @@
     cycleList.innerHTML = listHTML;
   }
 
-  function transformToD3Format(report) {
-    const files = Object.keys(report.graph);
+  function transformToD3Format(report, filter) {
+    const graph = filter(report.graph);
+    const files = Object.keys(graph);
     cachedFiles = files;
     const nodes = files.map((file) => ({ id: file }));
-    const links = files.flatMap((file) => report.graph[file].map((target) => ({
+    const links = files.flatMap((file) => graph[file].filter(f => files.includes(f)).map((target) => ({
       source: file,
       target: target,
     })));
@@ -150,6 +151,8 @@
     const hasCycle = (node) => {
       return cycles.some(cycle => cycle.some(n => n === node.id))
     };
+
+    d3.select('svg').remove();
 
     const svg = d3
       .select("#container")
@@ -321,7 +324,7 @@
   }
 
   if (window.report) {
-    const data = transformToD3Format(report);
+    const data = transformToD3Format(report, (graph) => graph);
     renderGraph(data, report.cycles);
   }
 
@@ -330,27 +333,30 @@
     control.onchange = () => {
       const linkDisplay = document.querySelector("[name=graphDisplay]:checked").value;
       if (linkDisplay === "full") {
-        link.attr("display", "initial");
-        node.attr("display", "initial");
+        const data = transformToD3Format(report, (graph) => graph);
+        renderGraph(data, report.cycles);
+      } else if (linkDisplay === "orphans") {
+        const filter = (graph) => {
+          return Object.keys(graph)
+            .filter(k => report.orphans.includes(k))
+            .reduce((obj, k) => ({
+              ...obj,
+              [k]: graph[k]
+            }), {});
+        };
+        const data = transformToD3Format(report, filter);
+        renderGraph(data, report.cycles);
       } else {
-        link.attr("display", "none");
-        node.attr("display", "none");
-
-        if (linkDisplay === "orphans") {
-          report.orphans.forEach(orphan => {
-            d3.selectAll(`.node-${id(orphan)}`).attr("display", "initial");
-          });
-        } else {
-          report.cycles.forEach(cycle => {
-            cycle.forEach((n, i) => {
-              const next = cycle[(i + 1) % cycle.length];
-              d3.selectAll(`.link-${id(n)}-${id(next)}`)
-                .attr("display", "initial")
-                .attr("stroke", "#999");
-              d3.selectAll(`.node-${id(n)}`).attr("display", "initial");
-            })
-          })
-        }
+        const filter = (graph) => {
+          return Object.keys(graph)
+            .filter(k => report.cycles.some(cycle => cycle.includes(k)))
+            .reduce((obj, k) => ({
+              ...obj,
+              [k]: graph[k]
+            }), {});
+        };
+        const data = transformToD3Format(report, filter);
+        renderGraph(data, report.cycles);
       }
     }
   });
